@@ -5,22 +5,43 @@ Copyright © 2022 balajisa09
 package cmd
 
 import (
+	//"context"
+	"fmt"
 	"os"
+	"flag"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
+	//metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	//"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/util/homedir"
 )
 
-
-
 // rootCmd represents the base command when called without any subcommands
+
 var rootCmd = &cobra.Command{
 	Use:   "k8s-netpol",
 	Short: "k8s-netpol is a CLI application for k8s network security analysis",
 	Long: `k8s-netpol is a CLI application for k8s network security analysis , currenty compactible with calico CNI`,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
-		cmd.Help()
+		var kubeconfig *string
+		//set kube config path
+		if home := homedir.HomeDir(); home != "" {
+			kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+		} else {
+			kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
+		}
+		flag.Parse()
+		//build config
+		config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+		
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println("The host path for the current cluster is: ",config.Host)
+		//create clientset
+	
 	 },
 }
 
