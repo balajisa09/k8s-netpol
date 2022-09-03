@@ -10,10 +10,12 @@ import (
 	"os"
 	"flag"
 	"path/filepath"
+	"context"
 
 	"github.com/spf13/cobra"
-	//metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	//"k8s.io/client-go/kubernetes"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	calico_cs "github.com/projectcalico/api/pkg/client/clientset_generated/clientset"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 )
@@ -26,6 +28,7 @@ var rootCmd = &cobra.Command{
 	Long: `k8s-netpol is a CLI application for k8s network security analysis , currenty compactible with calico CNI`,
 	Run: func(cmd *cobra.Command, args []string) {
 		var kubeconfig *string
+
 		//set kube config path
 		if home := homedir.HomeDir(); home != "" {
 			kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
@@ -33,6 +36,7 @@ var rootCmd = &cobra.Command{
 			kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
 		}
 		flag.Parse()
+
 		//build config
 		config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
 		
@@ -40,7 +44,49 @@ var rootCmd = &cobra.Command{
 			panic(err)
 		}
 		fmt.Println("The host path for the current cluster is: ",config.Host)
+
 		//create clientset
+		clientset, err := kubernetes.NewForConfig(config)
+		if err != nil {
+			panic(err)
+		}
+
+		//get list of standard network policies
+		stdnetpols ,err := clientset.NetworkingV1().NetworkPolicies("calico-new").List(context.Background(), metav1.ListOptions{})
+		if(err != nil){
+			panic(err)
+		}
+		foundstdNetpols := false
+		for _,netpol := range stdnetpols.Items{
+			foundstdNetpols = true
+			fmt.Println(netpol.Name)
+		}
+
+		if(!foundstdNetpols){
+			fmt.Println("No standard networkpolicies found")
+		}
+
+		//create calico clientset
+		calico_clientset, err := calico_cs.NewForConfig(config)
+		if err != nil {
+			panic(err)
+		}
+		//get list of calico networkpolicies
+		calico_netpols, err := calico_clientset.ProjectcalicoV3().NetworkPolicies("calico-new").List(context.Background(), metav1.ListOptions{})
+
+		if(err != nil){
+			panic(err)
+		}
+		foundcalicoNetpols := false
+		for _,netpol := range calico_netpols.Items{
+			foundcalicoNetpols = true
+			fmt.Println(netpol.Name)
+		}
+
+		if(!foundcalicoNetpols){
+			fmt.Println("No Calico networkpolicies found")
+		}
+
 	
 	 },
 }
